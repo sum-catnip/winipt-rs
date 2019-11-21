@@ -5,30 +5,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-
-    #[test]
     fn can_get_ipt_buffer_version() {
         assert_ne!(0, ipt_buffer_version().unwrap());
     }
 
     #[test]
-    fn can_start_ipt() {
-        enable_ipt().unwrap();
+    fn can_get_ipt_trace_version() {
+        assert_ne!(0, ipt_trace_version().unwrap());
     }
 
     #[test]
-    fn kektop() {
+    fn can_enable_ipt() {
         enable_ipt().unwrap();
-        assert_ne!(0, ipt_buffer_version().unwrap());
     }
+
 }
 
 mod bindings {
+    use std::os::windows::raw::HANDLE;
+    use std::ffi::c_void;
+
     extern {
         pub fn GetIptBufferVersion(version: *mut u32) -> bool;
+        pub fn GetIptTraceVersion(version: *mut u32) -> bool;
+        pub fn GetProcessIptTraceSize(proc: HANDLE, sz: *mut u32) -> bool;
+        pub fn GetProcessTrace(proc: HANDLE, trace: *mut c_void, sz: u32) -> bool;
     }
 }
 
@@ -73,8 +74,6 @@ pub fn enable_ipt() -> Result<(), Error> {
             //Err(x) if x.raw_os_error().contains(&ALREADY_RUNNING) => Ok(()),
             y => y
         }?;
-
-
     }
 
     Ok(())
@@ -84,6 +83,14 @@ pub fn ipt_buffer_version() -> Result<u32, Error> {
     let mut ver: u32 = 0;
     let res: bool;
     unsafe { res = bindings::GetIptBufferVersion(&mut ver); }
+    ch_last_error(res)?;
+    Ok(ver)
+}
+
+pub fn ipt_trace_version() -> Result<u32, Error> {
+    let mut ver: u32 = 0;
+    let res: bool;
+    unsafe { res = bindings::GetIptTraceVersion(&mut ver); }
     ch_last_error(res)?;
     Ok(ver)
 }
