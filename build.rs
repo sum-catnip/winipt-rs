@@ -4,6 +4,7 @@ fn main() {
     cc::Build::new()
         //.opt_level(3)
         .file("winipt/libipt/win32.c")
+        .define("UNICODE", None)
         .include("winipt/inc")
         .compile("cwinipt");
 }
