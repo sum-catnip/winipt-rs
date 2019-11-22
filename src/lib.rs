@@ -19,6 +19,11 @@ mod tests {
         enable_ipt().unwrap();
     }
 
+    fn fetch_proce_trace_sz() {
+        // TODO: create child proc to test this
+        //ipt_process_trace_sz(proc: HANDLE)
+    }
+
 }
 
 mod bindings {
@@ -30,15 +35,19 @@ mod bindings {
         pub fn GetIptTraceVersion(version: *mut u32) -> bool;
         pub fn GetProcessIptTraceSize(proc: HANDLE, sz: *mut u32) -> bool;
         pub fn GetProcessTrace(proc: HANDLE, trace: *mut c_void, sz: u32) -> bool;
+        // TODO: ffi bind structs and get neat todo highlighting ext
     }
 }
 
 use winapi::um::winsvc;
+use std::vec::Vec;
 use std::ptr::{null, null_mut};
 use std::io::Error;
 use std::ffi::OsStr;
+use std::ffi::c_void;
 use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
+use std::os::windows::raw::HANDLE;
 
 fn ch_last_error(condition: bool) -> Result<(), Error> {
     match condition {
@@ -94,3 +103,22 @@ pub fn ipt_trace_version() -> Result<u32, Error> {
     ch_last_error(res)?;
     Ok(ver)
 }
+
+pub fn ipt_process_trace_sz(proc: HANDLE) -> Result<u32, Error> {
+    let mut sz: u32 = 0;
+    let res: bool;
+    unsafe { res = bindings::GetProcessIptTraceSize(proc, &mut sz); }
+    ch_last_error(res)?;
+    Ok(sz)
+}
+
+pub fn ipt_process_trace(proc: HANDLE, sz: u32) -> Result<Vec<u8>, Error> {
+    let mut buf: Vec<u8> = Vec::new();
+    let res: bool;
+    unsafe { res = bindings::GetProcessTrace(
+        proc, buf.as_mut_ptr() as *mut c_void, sz
+    ); }
+    ch_last_error(res)?;
+    Ok(buf)
+}
+
