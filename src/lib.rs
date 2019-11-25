@@ -3,10 +3,8 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::process::Command;
-    use std::os::windows::io::AsRawHandle;
-    use std::os::windows::io::IntoRawHandle;
-    use std::os::windows::io::RawHandle;
+    use std::os::windows::raw::HANDLE;
+    use winapi::um::processthreadsapi;
 
     #[test]
     fn can_get_ipt_buffer_version() {
@@ -23,13 +21,14 @@ mod tests {
         enable_ipt().unwrap();
     }
 
+    // this is will fail cuz there is no proccess trace running for the current proc
+    // to make this work well need to bind the startprocesstracing func
     #[test]
     fn get_process_trace_sz() {
-        let child = Command::new("notepad.exe")
-            .spawn()
-            .expect("failed to spawn notepad.exe for test");
-        let kek: RawHandle = child;
         // ipt_process_trace_sz(child);
+        let hwnd: HANDLE;
+        unsafe { hwnd = processthreadsapi::GetCurrentProcess() as HANDLE; }
+        ipt_process_trace_sz(hwnd).unwrap();
     }
 
 }
@@ -39,6 +38,7 @@ mod bindings {
     use std::ffi::c_void;
     use modular_bitfield::prelude::*;
 
+    // i have no idea if this works
     #[bitfield]
     #[derive(Debug, PartialEq, Eq)]
     struct IPT_OPTIONS {
@@ -55,26 +55,31 @@ mod bindings {
         ModeSettings: B4,
         Reserved: B36
     }
-/*
-    #[repr(C)]
-    struct IPT_OPTIONS : u64{
-        OptionVersion : 4;    // Must be set to 1
-        TimingSettings : 4;   // IPT_TIMING_SETTINGS
-        MtcFrequency : 4;     // Bits 14:17 in IA32_RTIT_CTL
-        CycThreshold : 4;     // Bits 19:22 in IA32_RTIT_CTL
-        TopaPagesPow2 : 4;    // Size of buffer in ToPA, as 4KB powers of 2 (4KB->128MB). Multiple buffers will be used if CPUID.(EAX=014H,ECX=0H):ECX[1]= 1
-        MatchSettings: 3;     // IPT_MATCH_SETTINGS
-        Inherit : 1;          // Children will be automatically added to the trace
-        ModeSettings : 4;     // IPT_MODE_SETTINGS
-        Reserved : 36;
-    }*/
 
+    // the raw function bindings go here
+    // those names need to be the same as in the library were binding
+    // not all of em are tested as u can see so maybe i fucked on up
+    // all of those need to be wrapped in a rust like way
+    // examples of that are below
     extern {
         pub fn GetIptBufferVersion(version: *mut u32) -> bool;
         pub fn GetIptTraceVersion(version: *mut u32) -> bool;
         pub fn GetProcessIptTraceSize(proc: HANDLE, sz: *mut u32) -> bool;
-        pub fn GetProcessTrace(proc: HANDLE, trace: *mut c_void, sz: u32) -> bool;
-        // TODO: ffi bind structs and get neat todo highlighting ext
+        pub fn GetProcessIptTrace(proc: HANDLE, trace: *mut c_void, sz: u32) -> bool;
+        pub fn StartProcessIptTracing(proc: HANDLE, opt: IPT_OPTIONS) -> bool;
+        pub fn StopProcessIptTracing(proc: HANDLE) -> bool;
+        pub fn StartCoreIptTracing(opt: IPT_OPTIONS, tries: u32, duration: u32) -> bool;
+        pub fn PauseThreadIptTracing(thread: HANDLE, res: *mut bool) -> bool;
+        pub fn ResumeThreadIptTracing(thread: HANDLE, res: *mut bool) -> bool;
+        pub fn QueryProcessIptTracing(proc: HANDLE, opt: *mut IPT_OPTIONS) -> bool;
+        pub fn QueryCoreIptTracing(opt: *mut IPT_OPTIONS) -> bool;
+        pub fn RegisterExtendedImageForIptTracing(
+            img_path: *const u16,
+            filtered_path: *const u16,
+            opt: IPT_OPTIONS,
+            tried: u32,
+            duration: u32
+        ) -> bool;
     }
 }
 
@@ -88,6 +93,9 @@ use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::raw::HANDLE;
 
+// if the param is false this will returns the last os error
+// used so i can ch_last_error(res)?
+// which will abort the current function and just return the error
 fn ch_last_error(condition: bool) -> Result<(), Error> {
     match condition {
         false => Err(Error::last_os_error()),
@@ -95,6 +103,8 @@ fn ch_last_error(condition: bool) -> Result<(), Error> {
     }
 }
 
+// this is not a binding
+// i took this from the example program, to enable the driver
 pub fn enable_ipt() -> Result<(), Error> {
     unsafe {
         let mgr = winsvc::OpenSCManagerW(
@@ -153,10 +163,19 @@ pub fn ipt_process_trace_sz(proc: HANDLE) -> Result<u32, Error> {
 
 pub fn ipt_process_trace(proc: HANDLE, buf: &mut [u8]) -> Result<(), Error> {
     let res: bool;
-    unsafe { res = bindings::GetProcessTrace(
+    unsafe { res = bindings::GetProcessIptTrace(
         proc, buf.as_mut_ptr() as *mut c_void, buf.len() as u32
     );}
     ch_last_error(res)?;
     Ok(())
 }
 
+// i have no idea how to use the bitfields (IPT_OPTIONS)
+// or if they even work
+// i used the `modular bitfields` rust library
+// rust doesnt have bitfields but the winipt lib uses them
+// so i need to figure out how to bind em
+pub fn start_process_tracing(proc: HANDLE, opt: bindings::IPT_OPTIONS)
+    -> Result<(), Error> {
+
+}
