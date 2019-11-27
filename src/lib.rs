@@ -77,7 +77,7 @@ mod bindings {
             img_path: *const u16,
             filtered_path: *const u16,
             opt: IPT_OPTIONS,
-            tried: u32,
+            tried: u32, // should this be "tries: u32"
             duration: u32
         ) -> bool;
     }
@@ -177,5 +177,69 @@ pub fn ipt_process_trace(proc: HANDLE, buf: &mut [u8]) -> Result<(), Error> {
 // so i need to figure out how to bind em
 pub fn start_process_tracing(proc: HANDLE, opt: bindings::IPT_OPTIONS)
     -> Result<(), Error> {
+    let res: bool;
+    unsafe { res = bindings::StartProcessIptTracing(proc, opt);
+    ch_last_error(res)?;
+    Ok(())
 
+}
+
+pub fn stop_process_tracing(proc: HANDLE) -> Result<(), Error> {
+    let res: bool;
+    unsafe { res = bindings::StopProcessIptTracing(proc); }
+    ch_last_error(res)?;
+    Ok(())
+}
+
+pub fn start_core_process_tracing(opt: bindings::IPT_OPTIONS) -> Result<(), Error> {
+    let mut tries: u32 = 0;
+    let mut duration: u32 = 0;
+    unsafe { res = bindings::StartCoreIptTracing(opt, &mut tries, &mut duration); }
+    ch_last_error(res)?;
+    Ok(())
+}
+
+pub fn pause_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
+    let res: bool;
+    let pbres: bool = false;
+    unsafe { res = bindings::PauseThreadIptTracing(thread, &mut pbres); }
+    ch_last_error(res)?;
+    Ok(pbres)
+}
+
+pub fn resume_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
+    let res: bool;
+    let pbres: bool = false;
+    unsafe { res = bindings::ResumeThreadIptTracing(thread, &mut pbres); }
+    ch_last_error(res)?;
+    Ok(pbres)
+}
+
+// TODO: Is output type another bitfield? (PIPT_OPTIONS)
+pub fn query_process_tracing(proc: HANDLE, &mut opt: bindings::IPT_OPTIONS) -> Result<bindings::IPT_OPTIONS, Error> {
+    let res: bool;
+    unsafe { res = bindings::QueryProcessIptTracing(proc, &mut opt); }
+    ch_last_error(res)?;
+    Ok(opt)
+
+}
+
+// TODO: Is output type another bitfield? (PIPT_OPTIONS)
+pub fn query_core_process_tracing(&mut opt: bindings::IPT_OPTIONS) -> Result<bindings::IPT_OPTIONS, Error> {
+    let res: bool;
+    unsafe { res = bindings::QueryCoreIptTracing(&mut opt); }
+    ch_last_error(res)?;
+    Ok(opt)
+}
+
+// TODO: This binding feels wrong... I don't know what it does or why img_path is an int
+pub fn register_extended_image(opt: bindings::IPT_OPTIONS) -> Result<(), Error> {
+    let img_path: u16 = 0;
+    let filtered_path: u16 = 0;
+    let mut tries: u32 = 0;
+    let mut duration: u32 = 0;
+    let res = bool;
+    unsafe { res = bindings::RegisterExtendedImageForIptTracing(
+        &img_path, &filtered_path, &mut tries, &mut duration); } 
+    Ok(())
 }
