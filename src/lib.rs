@@ -77,7 +77,7 @@ mod bindings {
             img_path: *const u16,
             filtered_path: *const u16,
             opt: IPT_OPTIONS,
-            tried: u32, // should this be "tries: u32"
+            tries: u32,
             duration: u32
         ) -> bool;
     }
@@ -215,18 +215,18 @@ pub fn resume_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
     Ok(pbres)
 }
 
-// TODO: Is output type another bitfield? (PIPT_OPTIONS)
-pub fn query_process_tracing(proc: HANDLE, &mut opt: bindings::IPT_OPTIONS) -> Result<bindings::IPT_OPTIONS, Error> {
+pub fn query_process_tracing(proc: HANDLE) -> Result<bindings::IPT_OPTIONS, Error> {
     let res: bool;
+    let mut opt: bindings:: IPT_OPTIONS;
     unsafe { res = bindings::QueryProcessIptTracing(proc, &mut opt); }
     ch_last_error(res)?;
     Ok(opt)
 
 }
 
-// TODO: Is output type another bitfield? (PIPT_OPTIONS)
-pub fn query_core_process_tracing(&mut opt: bindings::IPT_OPTIONS) -> Result<bindings::IPT_OPTIONS, Error> {
+pub fn query_core_process_tracing() -> Result<bindings::IPT_OPTIONS, Error> {
     let res: bool;
+    let mut opt: bindings::IPT_OPTIONS;
     unsafe { res = bindings::QueryCoreIptTracing(&mut opt); }
     ch_last_error(res)?;
     Ok(opt)
