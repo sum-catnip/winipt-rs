@@ -62,7 +62,6 @@ mod bindings {
     // all of those need to be wrapped in a rust like way
     // examples of that are below
     extern {
-        pub fn GetIptBufferVersion(version: *mut u32) -> bool;
         pub fn GetIptTraceVersion(version: *mut u32) -> bool;
         pub fn GetProcessIptTraceSize(proc: HANDLE, sz: *mut u32) -> bool;
         pub fn GetProcessIptTrace(proc: HANDLE, trace: *mut c_void, sz: u32) -> bool;
@@ -92,6 +91,7 @@ use std::ffi::c_void;
 use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::raw::HANDLE;
+use winipt_sys;
 
 // if the param is false this will returns the last os error
 // used so i can ch_last_error(res)?
@@ -139,9 +139,9 @@ pub fn enable_ipt() -> Result<(), Error> {
 
 pub fn ipt_buffer_version() -> Result<u32, Error> {
     let mut ver: u32 = 0;
-    let res: bool;
-    unsafe { res = bindings::GetIptBufferVersion(&mut ver); }
-    ch_last_error(res)?;
+    let res: i32;
+    unsafe { res = winipt_sys::GetIptBufferVersion(&mut ver); }
+    ch_last_error(res > 0)?;
     Ok(ver)
 }
 
@@ -175,7 +175,7 @@ pub fn ipt_process_trace(proc: HANDLE, buf: &mut [u8]) -> Result<(), Error> {
 // i used the `modular bitfields` rust library
 // rust doesnt have bitfields but the winipt lib uses them
 // so i need to figure out how to bind em
-pub fn start_process_tracing(proc: HANDLE, opt: bindings::IPT_OPTIONS)
-    -> Result<(), Error> {
+// pub fn start_process_tracing(proc: HANDLE, opt: bindings::IPT_OPTIONS)
+//     -> Result<(), Error> {
 
-}
+// }

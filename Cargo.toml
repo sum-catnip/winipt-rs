@@ -10,6 +10,7 @@ edition = "2018"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.8", features = ["winsvc", "winerror", "processthreadsapi"] }
 modular-bitfield = "0.6.0"
+winipt-sys = "0.1.0"
 
 [build-dependencies]
 cc = "1.0"
