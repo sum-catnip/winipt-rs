@@ -21,6 +21,24 @@ mod tests {
         enable_ipt().unwrap();
     }
 
+    // I don't think this test works lmao, can't find fields - it'll be fixed by wrapper
+    // #[test]
+    // fn start_process_tracing() {
+    //     let hwnd: HANDLE;
+    //     let opt: winipt_sys::IPT_OPTIONS; // Most of these opts come from https://github.com/ionescu007/winipt/blob/master/ipttool/ipttool.c
+    //     opt.OptionVersion = 1;
+    //     opt.TimingSettings = 2;
+    //     opt.MtcFrequency = 3;
+    //     opt.CycThreshold = 1;
+    //     opt.TopaPagesPow2 = 128; // 128 B
+    //     opt.MatchSettings = 0;
+    //     opt.Inherit = 0;
+    //     opt.ModeSettings = 4 ;
+    //     opt.Reserved = 0;
+    //     unsafe { hwnd = processthreadsapi::GetCurrentProcess() as HANDLE; }
+    //     start_process_tracing(hwnd, opt)
+    // }
+
     // this is will fail cuz there is no proccess trace running for the current proc
     // to make this work well need to bind the startprocesstracing func
     #[test]
@@ -30,6 +48,7 @@ mod tests {
         unsafe { hwnd = processthreadsapi::GetCurrentProcess() as HANDLE; }
         ipt_process_trace_sz(hwnd).unwrap();
     }
+
 
 }
 
@@ -62,13 +81,12 @@ mod bindings {
     // all of those need to be wrapped in a rust like way
     // examples of that are below
     extern {
-        pub fn GetIptBufferVersion(version: *mut u32) -> bool;
-        pub fn GetIptTraceVersion(version: *mut u32) -> bool;
-        pub fn GetProcessIptTraceSize(proc: HANDLE, sz: *mut u32) -> bool;
-        pub fn GetProcessIptTrace(proc: HANDLE, trace: *mut c_void, sz: u32) -> bool;
-        pub fn StartProcessIptTracing(proc: HANDLE, opt: IPT_OPTIONS) -> bool;
-        pub fn StopProcessIptTracing(proc: HANDLE) -> bool;
-        pub fn StartCoreIptTracing(opt: IPT_OPTIONS, tries: u32, duration: u32) -> bool;
+        //pub fn GetIptTraceVersion(version: *mut u32) -> bool;
+        //pub fn GetProcessIptTraceSize(proc: HANDLE, sz: *mut u32) -> bool;
+        //pub fn GetProcessIptTrace(proc: HANDLE, trace: *mut c_void, sz: u32) -> bool;
+        //pub fn StartProcessIptTracing(proc: HANDLE, opt: IPT_OPTIONS) -> bool;
+        //pub fn StopProcessIptTracing(proc: HANDLE) -> bool;
+        //pub fn StartCoreIptTracing(opt: IPT_OPTIONS, tries: u32, duration: u32) -> bool;
         pub fn PauseThreadIptTracing(thread: HANDLE, res: *mut bool) -> bool;
         pub fn ResumeThreadIptTracing(thread: HANDLE, res: *mut bool) -> bool;
         pub fn QueryProcessIptTracing(proc: HANDLE, opt: *mut IPT_OPTIONS) -> bool;
@@ -77,7 +95,7 @@ mod bindings {
             img_path: *const u16,
             filtered_path: *const u16,
             opt: IPT_OPTIONS,
-            tried: u32,
+            tries: u32,
             duration: u32
         ) -> bool;
     }
@@ -92,6 +110,7 @@ use std::ffi::c_void;
 use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::raw::HANDLE;
+use winipt_sys;
 
 // if the param is false this will returns the last os error
 // used so i can ch_last_error(res)?
@@ -139,43 +158,107 @@ pub fn enable_ipt() -> Result<(), Error> {
 
 pub fn ipt_buffer_version() -> Result<u32, Error> {
     let mut ver: u32 = 0;
-    let res: bool;
-    unsafe { res = bindings::GetIptBufferVersion(&mut ver); }
-    ch_last_error(res)?;
+    let res: i32;
+    unsafe { res = winipt_sys::GetIptBufferVersion(&mut ver); }
+    ch_last_error(res > 0)?;
     Ok(ver)
 }
 
-pub fn ipt_trace_version() -> Result<u32, Error> {
-    let mut ver: u32 = 0;
-    let res: bool;
-    unsafe { res = bindings::GetIptTraceVersion(&mut ver); }
-    ch_last_error(res)?;
+pub fn ipt_trace_version() -> Result<u16, Error> {
+    let mut ver: u16 = 0;
+    let res: i32;
+    unsafe { res = winipt_sys::GetIptTraceVersion(&mut ver); }
+    ch_last_error(res > 0)?;
     Ok(ver)
 }
 
 pub fn ipt_process_trace_sz(proc: HANDLE) -> Result<u32, Error> {
     let mut sz: u32 = 0;
-    let res: bool;
-    unsafe { res = bindings::GetProcessIptTraceSize(proc, &mut sz); }
-    ch_last_error(res)?;
+    let res: i32;
+    unsafe { res = winipt_sys::GetProcessIptTraceSize(proc, &mut sz); }
+    ch_last_error(res > 0)?;
     Ok(sz)
 }
 
 pub fn ipt_process_trace(proc: HANDLE, buf: &mut [u8]) -> Result<(), Error> {
-    let res: bool;
-    unsafe { res = bindings::GetProcessIptTrace(
+    let res: i32;
+    unsafe { res = winipt_sys::GetProcessIptTrace(
         proc, buf.as_mut_ptr() as *mut c_void, buf.len() as u32
     );}
-    ch_last_error(res)?;
+    ch_last_error(res > 0)?;
     Ok(())
 }
 
-// i have no idea how to use the bitfields (IPT_OPTIONS)
-// or if they even work
-// i used the `modular bitfields` rust library
-// rust doesnt have bitfields but the winipt lib uses them
-// so i need to figure out how to bind em
-pub fn start_process_tracing(proc: HANDLE, opt: bindings::IPT_OPTIONS)
+// We will use the IPT_OPTIONS union wrapper instead
+pub fn start_process_tracing(proc: HANDLE, opt: winipt_sys::IPT_OPTIONS)
     -> Result<(), Error> {
-
+    let res: i32;
+    unsafe { res = winipt_sys::StartProcessIptTracing(proc, opt) };
+    ch_last_error(res > 0)?;
+    Ok(())
 }
+
+pub fn stop_process_tracing(proc: HANDLE) -> Result<(), Error> {
+    let res: i32;
+    unsafe { res = winipt_sys::StopProcessIptTracing(proc); }
+    ch_last_error(res > 0)?;
+    Ok(())
+}
+
+// We will use the IPT_OPTIONS union wrapper instead
+pub fn start_core_process_tracing(opt: winipt_sys::IPT_OPTIONS) -> Result<(), Error> {
+    let res: i32;
+    let tries: u32 = 3; // need to find how many tries to set
+    let duration: u32 = 60; // need to find what duration to set (in seconds)
+    unsafe { res = winipt_sys::StartCoreIptTracing(opt, tries, duration); }
+    ch_last_error(res > 0)?;
+    Ok(())
+}
+
+// pub fn pause_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
+//     let mut res: i32;
+//     let pbres: bool;
+//     unsafe { res = winipt_sys::PauseThreadIptTracing(thread, &mut pbres); } // expects pbres to be a u8, and not a bool
+//     ch_last_error(res > 0)?;
+//     Ok(pbres)
+// }
+
+// pub fn resume_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
+//     let mut res: i32;
+//     let pbres: bool;
+//     unsafe { res = winipt_sys::ResumeThreadIptTracing(thread, &mut pbres); } // expects pbres to be a u8, and not a bool
+//     ch_last_error(res > 0)?;
+//     Ok(pbres)
+// }
+
+// We will use the IPT_OPTIONS union wrapper instead
+// pub fn query_process_tracing(proc: HANDLE) -> Result<winipt_sys::IPT_OPTIONS, Error> {
+//     let res: i32;
+//     let mut opt: winipt_sys::IPT_OPTIONS;
+//     unsafe { res = winipt_sys::QueryProcessIptTracing(proc, &mut opt); }
+//     ch_last_error(res > 0)?;
+//     Ok(opt)
+// }
+
+// We will use the IPT_OPTIONS union wrapper instead
+// pub fn query_core_process_tracing() -> Result<winipt_sys::IPT_OPTIONS, Error> {
+//     let mut res: i32;
+//     let mut opt: winipt_sys::IPT_OPTIONS;
+//     unsafe { res = winipt_sys::QueryCoreIptTracing(&mut opt); }
+//     ch_last_error(res > 0)?;
+//     Ok(opt)
+// }
+
+// TODO: This binding feels wrong... I don't know what it does or why img_path is an int
+// We will use the IPT_OPTIONS union wrapper instead
+// pub fn register_extended_image(opt: winipt_sys::IPT_OPTIONS) -> Result<(), Error> {
+//     let img_path: u16 = 0;
+//     let filtered_path: u16 = 0;
+//     let mut tries: u32 = 0;
+//     let mut duration: u32 = 0;
+//     let res: i32;
+//     unsafe { res = winipt_sys::RegisterExtendedImageForIptTracing(
+//         &img_path, &filtered_path, &mut tries, &mut duration); } 
+//     ch_last_error(res > 0)?;
+//     Ok(())
+// }
