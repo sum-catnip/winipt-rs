@@ -74,15 +74,33 @@ impl Options {
         Options(IPT_OPTIONS{AsULonglong: 0})
     }
 
+    /// Must be set to 1
+    pub fn option_version(&self) -> u64 {
+        unsafe { self.0.__bindgen_anon_1.OptionVersion() }
+    }
+
+    /// Must be set to 1
+    pub fn set_option_version(&mut self, version: u64) {
+        unsafe { self.0.__bindgen_anon_1.set_OptionVersion(version) }
+    }
+
+    /// gets IPT_TIMING_SETTINGS
+    pub fn timing_settings(&self) -> u64 {
+        unsafe { self.0.__bindgen_anon_1.TimingSettings() }
+    }
+
+    /// sets IPT_TIMING_SETTINGS
+    pub fn set_timing_settings(&mut self, settings: u64) {
+        unsafe { self.0.__bindgen_anon_1.set_TimingSettings(settings) }
+    }
+
     /// returns the original IPT_OPTIONS struct
     /// internal use only
     fn wrapped(&self) -> IPT_OPTIONS { self.0 }
 
     /// get mutable reference to inner IPT_OPTIONS struct
     /// internal use only
-    fn wrapped_mut(&mut self) -> &mut IPT_OPTIONS {
-        &mut self.0
-    }
+    fn wrapped_mut(&mut self) -> &mut IPT_OPTIONS { &mut self.0 }
 }
 
 // if the param is false this will returns the last os error
