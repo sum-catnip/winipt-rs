@@ -52,55 +52,6 @@ mod tests {
 
 }
 
-mod bindings {
-    use std::os::windows::raw::HANDLE;
-    use std::ffi::c_void;
-    use modular_bitfield::prelude::*;
-
-    // i have no idea if this works
-    #[bitfield]
-    #[derive(Debug, PartialEq, Eq)]
-    struct IPT_OPTIONS {
-        OptionVersion: B4,
-        TimingSettings: B4,
-
-        MtcFrequency: B4,
-        CycThreshold: B4,
-
-        TopaPagesPow2: B4,
-        MatchSettings: B3,
-        Inherit: bool,
-
-        ModeSettings: B4,
-        Reserved: B36
-    }
-
-    // the raw function bindings go here
-    // those names need to be the same as in the library were binding
-    // not all of em are tested as u can see so maybe i fucked on up
-    // all of those need to be wrapped in a rust like way
-    // examples of that are below
-    extern {
-        //pub fn GetIptTraceVersion(version: *mut u32) -> bool;
-        //pub fn GetProcessIptTraceSize(proc: HANDLE, sz: *mut u32) -> bool;
-        //pub fn GetProcessIptTrace(proc: HANDLE, trace: *mut c_void, sz: u32) -> bool;
-        //pub fn StartProcessIptTracing(proc: HANDLE, opt: IPT_OPTIONS) -> bool;
-        //pub fn StopProcessIptTracing(proc: HANDLE) -> bool;
-        //pub fn StartCoreIptTracing(opt: IPT_OPTIONS, tries: u32, duration: u32) -> bool;
-        pub fn PauseThreadIptTracing(thread: HANDLE, res: *mut bool) -> bool;
-        pub fn ResumeThreadIptTracing(thread: HANDLE, res: *mut bool) -> bool;
-        pub fn QueryProcessIptTracing(proc: HANDLE, opt: *mut IPT_OPTIONS) -> bool;
-        pub fn QueryCoreIptTracing(opt: *mut IPT_OPTIONS) -> bool;
-        pub fn RegisterExtendedImageForIptTracing(
-            img_path: *const u16,
-            filtered_path: *const u16,
-            opt: IPT_OPTIONS,
-            tries: u32,
-            duration: u32
-        ) -> bool;
-    }
-}
-
 use winapi::um::winsvc;
 use std::vec::Vec;
 use std::ptr::{null, null_mut};
@@ -111,6 +62,7 @@ use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::raw::HANDLE;
 use winipt_sys;
+use winipt_sys::IPT_OPTIONS;
 
 // if the param is false this will returns the last os error
 // used so i can ch_last_error(res)?
@@ -215,49 +167,65 @@ pub fn start_core_process_tracing(opt: winipt_sys::IPT_OPTIONS) -> Result<(), Er
     Ok(())
 }
 
-// pub fn pause_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
-//     let mut res: i32;
-//     let pbres: bool;
-//     unsafe { res = winipt_sys::PauseThreadIptTracing(thread, &mut pbres); } // expects pbres to be a u8, and not a bool
-//     ch_last_error(res > 0)?;
-//     Ok(pbres)
-// }
+pub fn pause_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
+    let res: i32;
+    let mut pbres: u8 = 0;
+    unsafe { res = winipt_sys::PauseThreadIptTracing(thread, &mut pbres); }
+    ch_last_error(res > 0)?;
+    Ok(pbres > 0)
+}
 
-// pub fn resume_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
-//     let mut res: i32;
-//     let pbres: bool;
-//     unsafe { res = winipt_sys::ResumeThreadIptTracing(thread, &mut pbres); } // expects pbres to be a u8, and not a bool
-//     ch_last_error(res > 0)?;
-//     Ok(pbres)
-// }
+pub fn resume_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
+    let res: i32;
+    let mut pbres: u8 = 0;
+    unsafe { res = winipt_sys::ResumeThreadIptTracing(thread, &mut pbres); }
+    ch_last_error(res > 0)?;
+    Ok(pbres > 0)
+}
 
-// We will use the IPT_OPTIONS union wrapper instead
-// pub fn query_process_tracing(proc: HANDLE) -> Result<winipt_sys::IPT_OPTIONS, Error> {
-//     let res: i32;
-//     let mut opt: winipt_sys::IPT_OPTIONS;
-//     unsafe { res = winipt_sys::QueryProcessIptTracing(proc, &mut opt); }
-//     ch_last_error(res > 0)?;
-//     Ok(opt)
-// }
+// i have no idea what this does or if it works
+pub fn query_process_tracing(proc: HANDLE) -> Result<IPT_OPTIONS, Error> {
+    let res: i32;
+    // using the integer union field to initialize everything to 0
+    let mut opt = IPT_OPTIONS{AsULonglong: 0};
+    unsafe { res = winipt_sys::QueryProcessIptTracing(proc, &mut opt); }
+    ch_last_error(res > 0)?;
+    Ok(opt)
+}
 
-// We will use the IPT_OPTIONS union wrapper instead
-// pub fn query_core_process_tracing() -> Result<winipt_sys::IPT_OPTIONS, Error> {
-//     let mut res: i32;
-//     let mut opt: winipt_sys::IPT_OPTIONS;
-//     unsafe { res = winipt_sys::QueryCoreIptTracing(&mut opt); }
-//     ch_last_error(res > 0)?;
-//     Ok(opt)
-// }
+pub fn query_core_process_tracing() -> Result<IPT_OPTIONS, Error> {
+    let res: i32;
+    // using the integer union field to initialize everything to 0
+    let mut opt = IPT_OPTIONS{AsULonglong: 0};
+    unsafe { res = winipt_sys::QueryCoreIptTracing(&mut opt); }
+    ch_last_error(res > 0)?;
+    Ok(opt)
+}
 
-// TODO: This binding feels wrong... I don't know what it does or why img_path is an int
-// We will use the IPT_OPTIONS union wrapper instead
-// pub fn register_extended_image(opt: winipt_sys::IPT_OPTIONS) -> Result<(), Error> {
-//     let img_path: u16 = 0;
-//     let filtered_path: u16 = 0;
-//     let mut tries: u32 = 0;
-//     let mut duration: u32 = 0;
-//     let res: i32;
-//     unsafe { res = winipt_sys::RegisterExtendedImageForIptTracing(
-//         &img_path, &filtered_path, &mut tries, &mut duration); } 
-//     ch_last_error(res > 0)?;
-//     Ok(())
+// we will use the IPT_OPTIONS union wrapper instead
+// i have no idea what this even does tbh
+pub fn register_extended_image(
+    img_path: &str, filtered_path: &str,
+    opt: IPT_OPTIONS, tries: u32,
+    duration: u32)
+    -> Result<(), Error> {
+
+    let img_path_raw = OsStr::new(img_path)
+        .encode_wide()
+        .chain(Some(0).into_iter())
+        .collect::<Vec<_>>()
+        .as_mut_ptr();
+
+    let filtered_path_raw = OsStr::new(filtered_path)
+        .encode_wide()
+        .chain(Some(0).into_iter())
+        .collect::<Vec<_>>()
+        .as_mut_ptr();
+
+    let res: i32;
+    unsafe { res = winipt_sys::RegisterExtendedImageForIptTracing(
+        img_path_raw, filtered_path_raw, opt, tries, duration
+    );} 
+    ch_last_error(res > 0)?;
+    Ok(())
+}
