@@ -8,12 +8,12 @@ mod tests {
 
     #[test]
     fn can_get_ipt_buffer_version() {
-        assert_ne!(0, ipt_buffer_version().unwrap());
+        assert_ne!(0, buffer_version().unwrap());
     }
 
     #[test]
     fn can_get_ipt_trace_version() {
-        assert_ne!(0, ipt_trace_version().unwrap());
+        assert_ne!(0, trace_version().unwrap());
     }
 
     #[test]
@@ -46,7 +46,7 @@ mod tests {
         // ipt_process_trace_sz(child);
         let hwnd: HANDLE;
         unsafe { hwnd = processthreadsapi::GetCurrentProcess() as HANDLE; }
-        ipt_process_trace_sz(hwnd).unwrap();
+        process_trace_sz(hwnd).unwrap();
     }
 
 
@@ -63,6 +63,27 @@ use std::os::windows::ffi::OsStrExt;
 use std::os::windows::raw::HANDLE;
 use winipt_sys;
 use winipt_sys::IPT_OPTIONS;
+
+/// a wrapper around IPT_OPTIONS
+/// it contains all of the options used to manipulate the intelpt driver
+pub struct Options (IPT_OPTIONS);
+impl Options {
+    /// creates a new IPT_OPTIONS struct
+    /// and initializes it with zeroes
+    pub fn new() -> Self {
+        Options(IPT_OPTIONS{AsULonglong: 0})
+    }
+
+    /// returns the original IPT_OPTIONS struct
+    /// internal use only
+    fn wrapped(&self) -> IPT_OPTIONS { self.0 }
+
+    /// get mutable reference to inner IPT_OPTIONS struct
+    /// internal use only
+    fn wrapped_mut(&mut self) -> &mut IPT_OPTIONS {
+        &mut self.0
+    }
+}
 
 // if the param is false this will returns the last os error
 // used so i can ch_last_error(res)?
@@ -108,7 +129,7 @@ pub fn enable_ipt() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn ipt_buffer_version() -> Result<u32, Error> {
+pub fn buffer_version() -> Result<u32, Error> {
     let mut ver: u32 = 0;
     let res: i32;
     unsafe { res = winipt_sys::GetIptBufferVersion(&mut ver); }
@@ -116,7 +137,7 @@ pub fn ipt_buffer_version() -> Result<u32, Error> {
     Ok(ver)
 }
 
-pub fn ipt_trace_version() -> Result<u16, Error> {
+pub fn trace_version() -> Result<u16, Error> {
     let mut ver: u16 = 0;
     let res: i32;
     unsafe { res = winipt_sys::GetIptTraceVersion(&mut ver); }
@@ -124,7 +145,7 @@ pub fn ipt_trace_version() -> Result<u16, Error> {
     Ok(ver)
 }
 
-pub fn ipt_process_trace_sz(proc: HANDLE) -> Result<u32, Error> {
+pub fn process_trace_sz(proc: HANDLE) -> Result<u32, Error> {
     let mut sz: u32 = 0;
     let res: i32;
     unsafe { res = winipt_sys::GetProcessIptTraceSize(proc, &mut sz); }
@@ -132,7 +153,7 @@ pub fn ipt_process_trace_sz(proc: HANDLE) -> Result<u32, Error> {
     Ok(sz)
 }
 
-pub fn ipt_process_trace(proc: HANDLE, buf: &mut [u8]) -> Result<(), Error> {
+pub fn process_trace(proc: HANDLE, buf: &mut [u8]) -> Result<(), Error> {
     let res: i32;
     unsafe { res = winipt_sys::GetProcessIptTrace(
         proc, buf.as_mut_ptr() as *mut c_void, buf.len() as u32
@@ -142,10 +163,10 @@ pub fn ipt_process_trace(proc: HANDLE, buf: &mut [u8]) -> Result<(), Error> {
 }
 
 // We will use the IPT_OPTIONS union wrapper instead
-pub fn start_process_tracing(proc: HANDLE, opt: winipt_sys::IPT_OPTIONS)
+pub fn start_process_tracing(proc: HANDLE, opt: Options)
     -> Result<(), Error> {
     let res: i32;
-    unsafe { res = winipt_sys::StartProcessIptTracing(proc, opt) };
+    unsafe { res = winipt_sys::StartProcessIptTracing(proc, opt.wrapped()) };
     ch_last_error(res > 0)?;
     Ok(())
 }
@@ -158,11 +179,13 @@ pub fn stop_process_tracing(proc: HANDLE) -> Result<(), Error> {
 }
 
 // We will use the IPT_OPTIONS union wrapper instead
-pub fn start_core_process_tracing(opt: winipt_sys::IPT_OPTIONS) -> Result<(), Error> {
+pub fn start_core_process_tracing(opt: Options) -> Result<(), Error> {
     let res: i32;
     let tries: u32 = 3; // need to find how many tries to set
     let duration: u32 = 60; // need to find what duration to set (in seconds)
-    unsafe { res = winipt_sys::StartCoreIptTracing(opt, tries, duration); }
+    unsafe { 
+        res = winipt_sys::StartCoreIptTracing(opt.wrapped(), tries, duration);
+    }
     ch_last_error(res > 0)?;
     Ok(())
 }
@@ -184,20 +207,22 @@ pub fn resume_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
 }
 
 // i have no idea what this does or if it works
-pub fn query_process_tracing(proc: HANDLE) -> Result<IPT_OPTIONS, Error> {
+pub fn query_process_tracing(proc: HANDLE) -> Result<Options, Error> {
     let res: i32;
     // using the integer union field to initialize everything to 0
-    let mut opt = IPT_OPTIONS{AsULonglong: 0};
-    unsafe { res = winipt_sys::QueryProcessIptTracing(proc, &mut opt); }
+    let mut opt = Options::new();
+    unsafe { 
+        res = winipt_sys::QueryProcessIptTracing(proc, opt.wrapped_mut());
+    }
     ch_last_error(res > 0)?;
     Ok(opt)
 }
 
-pub fn query_core_process_tracing() -> Result<IPT_OPTIONS, Error> {
+pub fn query_core_process_tracing() -> Result<Options, Error> {
     let res: i32;
     // using the integer union field to initialize everything to 0
-    let mut opt = IPT_OPTIONS{AsULonglong: 0};
-    unsafe { res = winipt_sys::QueryCoreIptTracing(&mut opt); }
+    let mut opt = Options::new();
+    unsafe { res = winipt_sys::QueryCoreIptTracing(opt.wrapped_mut()); }
     ch_last_error(res > 0)?;
     Ok(opt)
 }
@@ -206,7 +231,7 @@ pub fn query_core_process_tracing() -> Result<IPT_OPTIONS, Error> {
 // i have no idea what this even does tbh
 pub fn register_extended_image(
     img_path: &str, filtered_path: &str,
-    opt: IPT_OPTIONS, tries: u32,
+    opt: Options, tries: u32,
     duration: u32)
     -> Result<(), Error> {
 
@@ -224,7 +249,7 @@ pub fn register_extended_image(
 
     let res: i32;
     unsafe { res = winipt_sys::RegisterExtendedImageForIptTracing(
-        img_path_raw, filtered_path_raw, opt, tries, duration
+        img_path_raw, filtered_path_raw, opt.wrapped(), tries, duration
     );} 
     ch_last_error(res > 0)?;
     Ok(())
