@@ -62,7 +62,22 @@ use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::raw::HANDLE;
 use winipt_sys;
-use winipt_sys::IPT_OPTIONS;
+use bitmask::bitmask;
+use winipt_sys::{
+    IPT_OPTIONS,
+    IPT_TIMING_SETTINGS_IptEnableCycPackets,
+    IPT_TIMING_SETTINGS_IptEnableMtcPackets,
+    IPT_TIMING_SETTINGS_IptNoTimingPackets
+};
+
+// TODO: convert to bitmask
+bitmask! {
+    pub mask TimingSettings : u64 where flags TimmingSetting {
+        EnableCycPackets = IPT_TIMING_SETTINGS_IptEnableCycPackets as u64,
+        EnableMtcPackets = IPT_TIMING_SETTINGS_IptEnableMtcPackets as u64,
+        NoTimingPackets  = IPT_TIMING_SETTINGS_IptNoTimingPackets  as u64
+    }
+}
 
 /// a wrapper around IPT_OPTIONS
 /// it contains all of the options used to manipulate the intelpt driver
@@ -70,28 +85,32 @@ pub struct Options (IPT_OPTIONS);
 impl Options {
     /// creates a new IPT_OPTIONS struct
     /// and initializes it with zeroes
+    /// OptionVersion will be set to 1 tho
     pub fn new() -> Self {
-        Options(IPT_OPTIONS{AsULonglong: 0})
+        let mut o = Options(IPT_OPTIONS{AsULonglong: 0});
+        o.set_option_version(1);
+        o
     }
 
-    /// Must be set to 1
+    /// Must be set to 1 (will be by default)
     pub fn option_version(&self) -> u64 {
         unsafe { self.0.__bindgen_anon_1.OptionVersion() }
     }
 
-    /// Must be set to 1
+    /// Must be set to 1 (will be by deault)
     pub fn set_option_version(&mut self, version: u64) {
         unsafe { self.0.__bindgen_anon_1.set_OptionVersion(version) }
     }
 
+    // TODO find a way to turn this u64 into a TimingSettings
     /// gets IPT_TIMING_SETTINGS
     pub fn timing_settings(&self) -> u64 {
         unsafe { self.0.__bindgen_anon_1.TimingSettings() }
     }
 
     /// sets IPT_TIMING_SETTINGS
-    pub fn set_timing_settings(&mut self, settings: u64) {
-        unsafe { self.0.__bindgen_anon_1.set_TimingSettings(settings) }
+    pub fn set_timing_settings(&mut self, settings: TimingSettings) {
+        unsafe { self.0.__bindgen_anon_1.set_TimingSettings(*settings) }
     }
 
     /// returns the original IPT_OPTIONS struct
