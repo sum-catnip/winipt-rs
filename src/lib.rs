@@ -67,15 +67,46 @@ use winipt_sys::{
     IPT_OPTIONS,
     IPT_TIMING_SETTINGS_IptEnableCycPackets,
     IPT_TIMING_SETTINGS_IptEnableMtcPackets,
-    IPT_TIMING_SETTINGS_IptNoTimingPackets
+    IPT_TIMING_SETTINGS_IptNoTimingPackets,
+
+    _IPT_MATCH_SETTINGS_IptMatchByAnyApp,
+    _IPT_MATCH_SETTINGS_IptMatchByAnyPackage,
+    _IPT_MATCH_SETTINGS_IptMatchByImageFileName,
+    _IPT_MATCH_SETTINGS_IptMatchByPackageName,
+
+    _IPT_MODE_SETTINGS_IptCtlKernelModeOnly,
+    _IPT_MODE_SETTINGS_IptCtlUserAndKernelMode,
+    _IPT_MODE_SETTINGS_IptCtlUserModeOnly,
+    _IPT_MODE_SETTINGS_IptRegKernelModeOnly,
+    _IPT_MODE_SETTINGS_IptRegUserAndKernelMode,
+    _IPT_MODE_SETTINGS_IptRegUserModeOnly
 };
 
-// TODO: convert to bitmask
 bitmask! {
-    pub mask TimingSettings : u64 where flags TimmingSetting {
-        EnableCycPackets = IPT_TIMING_SETTINGS_IptEnableCycPackets as u64,
-        EnableMtcPackets = IPT_TIMING_SETTINGS_IptEnableMtcPackets as u64,
-        NoTimingPackets  = IPT_TIMING_SETTINGS_IptNoTimingPackets  as u64
+    pub mask TimingSettings : i32 where flags TimingSetting {
+        EnableCycPackets = IPT_TIMING_SETTINGS_IptEnableCycPackets,
+        EnableMtcPackets = IPT_TIMING_SETTINGS_IptEnableMtcPackets,
+        NoTimingPackets  = IPT_TIMING_SETTINGS_IptNoTimingPackets
+    }
+}
+
+bitmask! {
+    pub mask MatchSettings : i32 where flags MatchSetting {
+        MatchByAnyApp        = _IPT_MATCH_SETTINGS_IptMatchByAnyApp,
+        MatchByAnyPackage    = _IPT_MATCH_SETTINGS_IptMatchByAnyPackage,
+        MatchByImageFileName = _IPT_MATCH_SETTINGS_IptMatchByImageFileName,
+        MatchByPackageName   = _IPT_MATCH_SETTINGS_IptMatchByPackageName
+    }
+}
+
+bitmask! {
+    pub mask ModeSettings : i32 where flags ModeSetting {
+        CtlKernelModeOnly    = _IPT_MODE_SETTINGS_IptCtlKernelModeOnly,
+        CtlUserAndKernelMode = _IPT_MODE_SETTINGS_IptCtlUserAndKernelMode,
+        CtlUserModeOnly      = _IPT_MODE_SETTINGS_IptCtlUserModeOnly,
+        RegKernelModeOnly    = _IPT_MODE_SETTINGS_IptRegKernelModeOnly,
+        RegUserAndKernelMode = _IPT_MODE_SETTINGS_IptRegUserAndKernelMode,
+        RegUserModeOnl       = _IPT_MODE_SETTINGS_IptRegUserModeOnly
     }
 }
 
@@ -110,7 +141,69 @@ impl Options {
 
     /// sets IPT_TIMING_SETTINGS
     pub fn set_timing_settings(&mut self, settings: TimingSettings) {
-        unsafe { self.0.__bindgen_anon_1.set_TimingSettings(*settings) }
+        // the original bitfield specified 4 bytes so were fine
+        unsafe { self.0.__bindgen_anon_1.set_TimingSettings(*settings as u64) }
+    }
+
+    /// gets Bits 14:17 in IA32_RTIT_CTL
+    pub fn mtc_frequency(&self) -> u64 {
+        unsafe { self.0.__bindgen_anon_1.MtcFrequency() }
+    }
+
+    /// sets Bits 14:17 in IA32_RTIT_CTL
+    pub fn set_mtc_frequency(&mut self, freq: u64) {
+        unsafe { self.0.__bindgen_anon_1.set_MtcFrequency(freq) }
+    }
+
+    /// gets Bits 19:22 in IA32_RTIT_CTL
+    pub fn cyc_threshold(&self) -> u64 {
+        unsafe { self.0.__bindgen_anon_1.CycThreshold() }
+    }
+
+    /// sets Bits 19:22 in IA32_RTIT_CTL
+    pub fn set_cyc_threshold(&mut self, threshold: u64) {
+        unsafe { self.0.__bindgen_anon_1.set_CycThreshold(threshold) }
+    }
+
+    /// gets the Size of buffer in ToPA, as 4KB powers of 2 (4KB->128MB). Multiple buffers will be used if CPUID.(EAX=014H,ECX=0H):ECX[1]= 1
+    pub fn topa_pages_pow2(&self) -> u64 {
+        unsafe { self.0.__bindgen_anon_1.TopaPagesPow2() }
+    }
+
+    /// sets the Size of buffer in ToPA, as 4KB powers of 2 (4KB->128MB). Multiple buffers will be used if CPUID.(EAX=014H,ECX=0H):ECX[1]= 1
+    pub fn set_topa_pages_pow2(&mut self, size: u64) {
+        unsafe { self.0.__bindgen_anon_1.set_TopaPagesPow2(size) }
+    }
+
+    /// get IPT_MATCH_SETTINGS
+    pub fn match_settings(&self) -> u64 {
+        unsafe { self.0.__bindgen_anon_1.MatchSettings() }
+    }
+
+    /// set IPT_MATCH_SETTINGS
+    pub fn set_match_settings(&mut self, settings: MatchSettings) {
+        // IPT_MATCH_SETTINGS is 3 bytes so casting here is fine
+        unsafe { self.0.__bindgen_anon_1.set_MatchSettings(*settings as u64) }
+    }
+
+    /// if children will be automatically added to the trace
+    pub fn inherit(&self) -> bool {
+        unsafe { self.0.__bindgen_anon_1.Inherit() > 0 }
+    }
+
+    // if children will be automatically added to the trace
+    pub fn set_inherit(&mut self, inherit: bool) {
+        unsafe { self.0.__bindgen_anon_1.set_MatchSettings(inherit as u64) }
+    }
+
+    /// get IPT_MODE_SETTINGS
+    pub fn mode_settings(&self) -> u64 {
+        unsafe { self.0.__bindgen_anon_1.ModeSettings() }
+    }
+
+    /// set IPT_MODE_SETTINGS
+    pub fn set_mode_settings(&mut self, settings: ModeSettings) {
+        unsafe { self.0.__bindgen_anon_1.set_MatchSettings(*settings as u64) }
     }
 
     /// returns the original IPT_OPTIONS struct
@@ -216,7 +309,7 @@ pub fn stop_process_tracing(proc: HANDLE) -> Result<(), Error> {
 }
 
 // We will use the IPT_OPTIONS union wrapper instead
-pub fn start_core_process_tracing(opt: Options) -> Result<(), Error> {
+pub fn start_core_tracing(opt: Options) -> Result<(), Error> {
     let res: i32;
     let tries: u32 = 3; // need to find how many tries to set
     let duration: u32 = 60; // need to find what duration to set (in seconds)
@@ -227,7 +320,7 @@ pub fn start_core_process_tracing(opt: Options) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn pause_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
+pub fn pause_thread_tracing(thread: HANDLE) -> Result<bool, Error> {
     let res: i32;
     let mut pbres: u8 = 0;
     unsafe { res = winipt_sys::PauseThreadIptTracing(thread, &mut pbres); }
@@ -235,7 +328,7 @@ pub fn pause_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
     Ok(pbres > 0)
 }
 
-pub fn resume_thread_process_tracing(thread: HANDLE) -> Result<bool, Error> {
+pub fn resume_thread_tracing(thread: HANDLE) -> Result<bool, Error> {
     let res: i32;
     let mut pbres: u8 = 0;
     unsafe { res = winipt_sys::ResumeThreadIptTracing(thread, &mut pbres); }
@@ -255,7 +348,7 @@ pub fn query_process_tracing(proc: HANDLE) -> Result<Options, Error> {
     Ok(opt)
 }
 
-pub fn query_core_process_tracing() -> Result<Options, Error> {
+pub fn query_core_tracing() -> Result<Options, Error> {
     let res: i32;
     // using the integer union field to initialize everything to 0
     let mut opt = Options::new();
