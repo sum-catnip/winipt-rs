@@ -1,6 +1,8 @@
 use winipt_sys::IPT_OPTIONS;
 use crate::settings::{TimingSettings, MatchSettings, ModeSettings};
 
+// bindgen is wrong about the bitfield sizes so im casting them to prevent ub
+
 /// a wrapper around IPT_OPTIONS
 /// it contains all of the options used to manipulate the intelpt driver
 pub struct Options (IPT_OPTIONS);
@@ -13,64 +15,65 @@ impl Options {
         o.set_option_version(1);
         o
     }
-
+    
     /// Must be set to 1 (will be by default)
-    pub fn option_version(&self) -> u64 {
-        unsafe { self.0.__bindgen_anon_1.OptionVersion() }
+    pub fn option_version(&self) -> u32 {
+        unsafe { self.0.__bindgen_anon_1.OptionVersion() as u32 }
     }
 
     /// Must be set to 1 (will be by deault)
-    pub fn set_option_version(&mut self, version: u64) {
-        unsafe { self.0.__bindgen_anon_1.set_OptionVersion(version) }
+    pub fn set_option_version(&mut self, version: u32) {
+        unsafe { self.0.__bindgen_anon_1.set_OptionVersion(version as u64) }
     }
 
-    // TODO find a way to turn this u64 into a TimingSettings
+    // TODO find a way to turn this u32 into a TimingSettings
     /// gets IPT_TIMING_SETTINGS
-    pub fn timing_settings(&self) -> u64 {
-        unsafe { self.0.__bindgen_anon_1.TimingSettings() }
+    pub fn timing_settings(&self) -> u32 {
+        unsafe { self.0.__bindgen_anon_1.TimingSettings() as u32 }
     }
 
     /// sets IPT_TIMING_SETTINGS
     pub fn set_timing_settings(&mut self, settings: TimingSettings) {
-        // the original bitfield specified 4 bytes so were fine
         unsafe { self.0.__bindgen_anon_1.set_TimingSettings(*settings as u64) }
     }
 
     /// gets Bits 14:17 in IA32_RTIT_CTL
-    pub fn mtc_frequency(&self) -> u64 {
-        unsafe { self.0.__bindgen_anon_1.MtcFrequency() }
+    pub fn mtc_frequency(&self) -> u32 {
+        unsafe { self.0.__bindgen_anon_1.MtcFrequency() as u32 }
     }
 
     /// sets Bits 14:17 in IA32_RTIT_CTL
-    pub fn set_mtc_frequency(&mut self, freq: u64) {
-        unsafe { self.0.__bindgen_anon_1.set_MtcFrequency(freq) }
+    pub fn set_mtc_frequency(&mut self, freq: u32) {
+        unsafe { self.0.__bindgen_anon_1.set_MtcFrequency(freq as u64) }
     }
 
     /// gets Bits 19:22 in IA32_RTIT_CTL
-    pub fn cyc_threshold(&self) -> u64 {
-        unsafe { self.0.__bindgen_anon_1.CycThreshold() }
+    pub fn cyc_threshold(&self) -> u32 {
+        unsafe { self.0.__bindgen_anon_1.CycThreshold() as u32 }
     }
 
     /// sets Bits 19:22 in IA32_RTIT_CTL
-    pub fn set_cyc_threshold(&mut self, threshold: u64) {
-        unsafe { self.0.__bindgen_anon_1.set_CycThreshold(threshold) }
+    pub fn set_cyc_threshold(&mut self, threshold: u32) {
+        unsafe { self.0.__bindgen_anon_1.set_CycThreshold(threshold as u64) }
     }
 
     /// gets the Size of buffer in ToPA, as 4KB powers of 2 (4KB->128MB).
     /// Multiple buffers will be used if CPUID.(EAX=014H,ECX=0H):ECX[1]= 1
-    pub fn topa_pages_pow2(&self) -> u64 {
-        unsafe { self.0.__bindgen_anon_1.TopaPagesPow2() }
+    pub fn topa_pages_pow2(&self) -> u32 {
+        unsafe { self.0.__bindgen_anon_1.TopaPagesPow2() as u32 }
     }
 
     /// sets the Size of buffer in ToPA, as 4KB powers of 2 (4KB->128MB).
     /// Multiple buffers will be used if CPUID.(EAX=014H,ECX=0H):ECX[1]= 1
-    pub fn set_topa_pages_pow2(&mut self, size: u64) {
-        unsafe { self.0.__bindgen_anon_1.set_TopaPagesPow2(size) }
+    /// 
+    /// __**WARNING: I HAVE NO IDEA WHAT HAPPENS WITH UNALIGNED VALUES**__
+    pub fn set_topa_pages_pow2(&mut self, size: u32) {
+        unsafe { self.0.__bindgen_anon_1.set_TopaPagesPow2(size as u64) }
     }
 
     /// get IPT_MATCH_SETTINGS
-    pub fn match_settings(&self) -> u64 {
-        unsafe { self.0.__bindgen_anon_1.MatchSettings() }
+    pub fn match_settings(&self) -> u32 {
+        unsafe { self.0.__bindgen_anon_1.MatchSettings() as u32 }
     }
 
     /// set IPT_MATCH_SETTINGS
@@ -90,8 +93,8 @@ impl Options {
     }
 
     /// get IPT_MODE_SETTINGS
-    pub fn mode_settings(&self) -> u64 {
-        unsafe { self.0.__bindgen_anon_1.ModeSettings() }
+    pub fn mode_settings(&self) -> u32 {
+        unsafe { self.0.__bindgen_anon_1.ModeSettings() as u32 }
     }
 
     /// set IPT_MODE_SETTINGS
