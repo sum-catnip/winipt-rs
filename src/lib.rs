@@ -12,6 +12,7 @@ mod tests {
     use std::os::windows::raw::HANDLE;
     use winapi::um::processthreadsapi;
     use std::panic;
+    use self::settings::*;
 
     #[test]
     fn libipt_available() {
@@ -31,23 +32,33 @@ mod tests {
     }
 
     #[test]
-    fn record_process_trace() {
+    fn record_process_trace_userland_notiming() {
         // lets record this process
         let hwnd: HANDLE;
         unsafe { hwnd = processthreadsapi::GetCurrentProcess() as HANDLE; }
-        let opt = Options::new();
-        // configure buffer and trace
+        let mut opt = Options::new();
+        opt.set_topa_pages_pow2(4 * 1024);
+        // matching doesnt apply to process tracing
+        let mut settings = MatchSettings::none();
+        settings.set(MatchSetting::MatchByAnyApp);
+        opt.set_match_settings(settings);
+        // timing settings
+        let mut settings = TimingSettings::none();
+        settings.set(TimingSetting::NoTimingPackets);
+        opt.set_timing_settings(settings);
+        // set usermode
+        let mut settings = ModeSettings::none();
+        settings.set(ModeSetting::CtlUserModeOnly);
+        opt.set_mode_settings(settings);
+
+        // start the trace
+        start_process_tracing(hwnd, opt).unwrap();
+        // grab the trace
+        let mut buf = vec![0;process_trace_sz(hwnd).unwrap() as usize];
+        process_trace(hwnd, &mut buf).unwrap();
+        assert_ne!(0, buf.len());
+        println!("process trace: {:?}", buf);
+        // stop the trace
+        stop_process_tracing(hwnd).unwrap();
     }
-
-    // this is will fail cuz there is no proccess trace running for the current proc
-    // to make this work well need to bind the startprocesstracing func
-    #[test]
-    fn get_process_trace_sz() {
-        // ipt_process_trace_sz(child);
-        let hwnd: HANDLE;
-        unsafe { hwnd = processthreadsapi::GetCurrentProcess() as HANDLE; }
-        process_trace_sz(hwnd).unwrap();
-    }
-
-
 }
