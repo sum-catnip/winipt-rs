@@ -89,7 +89,7 @@ pub fn process_trace(proc: HANDLE, buf: &mut [u8]) -> Result<(), Error> {
 }
 
 // We will use the IPT_OPTIONS union wrapper instead
-pub fn start_process_tracing(proc: HANDLE, opt: Options)
+pub fn start_process_tracing(proc: HANDLE, opt: &Options)
     -> Result<(), Error> {
     let res: i32;
     unsafe { res = winipt_sys::StartProcessIptTracing(proc, opt.wrapped()) };
@@ -105,10 +105,8 @@ pub fn stop_process_tracing(proc: HANDLE) -> Result<(), Error> {
 }
 
 // We will use the IPT_OPTIONS union wrapper instead
-pub fn start_core_tracing(opt: Options) -> Result<(), Error> {
+pub fn start_core_tracing(opt: &Options, tries: u32, duration: u32) -> Result<(), Error> {
     let res: i32;
-    let tries: u32 = 3; // need to find how many tries to set
-    let duration: u32 = 60; // need to find what duration to set (in seconds)
     unsafe { 
         res = winipt_sys::StartCoreIptTracing(opt.wrapped(), tries, duration);
     }
@@ -157,7 +155,7 @@ pub fn query_core_tracing() -> Result<Options, Error> {
 // i have no idea what this even does tbh
 pub fn register_extended_image(
     img_path: &str, filtered_path: &str,
-    opt: Options, tries: u32,
+    opt: &Options, tries: u32,
     duration: u32)
     -> Result<(), Error> {
 
