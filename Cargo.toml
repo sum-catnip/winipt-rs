@@ -8,6 +8,6 @@ edition = "2018"
 
 [dependencies]
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.8", features = ["winsvc", "winerror", "processthreadsapi"] }
+winapi = { version = "0.3.8", features = ["winsvc", "winerror"] }
 winipt-sys = "0.1.1"
 bitmask = "0.5.0"
