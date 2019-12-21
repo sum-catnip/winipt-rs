@@ -1,5 +1,8 @@
 use winipt_sys::IPT_OPTIONS;
-use crate::settings::{TimingSettings, MatchSettings, ModeSettings};
+use crate::settings::{
+    TimingSettings, MatchSettings, ModeSettings,
+    TimingSetting,  MatchSetting,  ModeSetting
+};
 
 // bindgen is wrong about the bitfield sizes so im casting them to prevent ub
 
@@ -15,7 +18,7 @@ impl Options {
         o.set_option_version(1);
         o
     }
-    
+
     /// Must be set to 1 (will be by default)
     pub fn option_version(&self) -> u32 {
         unsafe { self.0.__bindgen_anon_1.OptionVersion() as u32 }
@@ -33,7 +36,9 @@ impl Options {
     }
 
     /// sets IPT_TIMING_SETTINGS
-    pub fn set_timing_settings(&mut self, settings: TimingSettings) {
+    pub fn set_timing_settings(&mut self, timing: TimingSetting) {
+        let mut settings = TimingSettings::none();
+        settings.set(timing);
         unsafe { self.0.__bindgen_anon_1.set_TimingSettings(*settings as u64) }
     }
 
@@ -77,7 +82,9 @@ impl Options {
     }
 
     /// set IPT_MATCH_SETTINGS
-    pub fn set_match_settings(&mut self, settings: MatchSettings) {
+    pub fn set_match_settings(&mut self, match_stg: MatchSetting) {
+        let mut settings = MatchSettings::none();
+        settings.set(match_stg);
         // IPT_MATCH_SETTINGS is 3 bytes so casting here is fine
         unsafe { self.0.__bindgen_anon_1.set_MatchSettings(*settings as u64) }
     }
@@ -98,7 +105,9 @@ impl Options {
     }
 
     /// set IPT_MODE_SETTINGS
-    pub fn set_mode_settings(&mut self, settings: ModeSettings) {
+    pub fn set_mode_settings(&mut self, mode: ModeSetting) {
+        let mut settings = ModeSettings::none();
+        settings.set(mode);
         unsafe { self.0.__bindgen_anon_1.set_MatchSettings(*settings as u64) }
     }
 
