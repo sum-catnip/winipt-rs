@@ -14,3 +14,5 @@ The [original repo](https://github.com/ionescu007/winipt) has an example tool wh
 - IPT_OPTIONS struct should probably implement copy trait since its only an int in size.
 - when thats done, pass options by value instead of reference
 - there should be a function which gets the trace and gets the trace size itself (maybe even put that in the main function)
+- better ipt_options constructor
+- use bitflags instead of bitmasks
