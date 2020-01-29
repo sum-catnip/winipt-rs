@@ -11,7 +11,7 @@ repository = "https://github.com/sum-catnip/winipt-rs"
 
 [dependencies]
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.8", features = ["winsvc", "winerror", "processthreadsapi"] }
+winapi = { version = "0.3.8", features = ["winsvc", "winerror"] }
 winipt-sys = "0.1.1"
 bitflags = "1.2.1"
 num_enum = "0.4.2"
