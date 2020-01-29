@@ -114,7 +114,7 @@ mod tests {
         assert_ne!(0, trace_version().unwrap());
     }
 
-    fn assert_options_equal(opt1: &Options, opt2: &Options) {
+    fn assert_options_equal(opt1: Options, opt2: Options) {
         assert_eq!(opt1.topa_pages_pow2(), opt2.topa_pages_pow2());
         assert_eq!(opt1.timing_settings(), opt2.timing_settings());
         assert_eq!(opt1.option_version(),  opt2.option_version());
@@ -126,11 +126,11 @@ mod tests {
     }
 
     fn userland_notiming_options() -> Options {
-        let mut opt = Options::new();
-        opt.set_match_settings(MatchSetting::MatchByAnyApp);
-        opt.set_timing_settings(TimingSetting::NoTimingPackets);
-        opt.set_mode_settings(ModeSetting::CtlUserModeOnly);
-        opt
+        OptionsBuilder::new()
+            .match_settings(MatchSettings::MATCH_BY_ANY_APP)
+            .timing_settings(TimingSettings::NO_TIMING_PACKETS)
+            .mode_settings(ModeSettings::CTL_USERMODE_ONLY)
+            .finish()
     }
 
     #[test]
@@ -143,17 +143,16 @@ mod tests {
         let opt = userland_notiming_options();
 
         // start the trace
-        start_process_tracing(hwnd, &opt).unwrap();
+        let tracer = ProcessTracer::new_start(hwnd, opt).unwrap();
         // grab the trace
-        let mut buf = vec![0;process_trace_sz(hwnd).unwrap() as usize];
-        process_trace(hwnd, &mut buf).unwrap();
-        println!("{:?}", buf.len());
+        let buf = tracer.trace().unwrap();
+        assert!(tracer.size().unwrap() > 0);
         assert_ne!(0, buf.len());
         // query the options and check if they match
-        let expectopt = query_process_tracing(hwnd).unwrap();
-        assert_options_equal(&opt, &expectopt);
+        let expectopt = tracer.options().unwrap();
+        assert_options_equal(opt, expectopt);
         // stop the trace
-        stop_process_tracing(hwnd).unwrap();
+        tracer.stop().unwrap();
         target.kill().unwrap();
     }
 }
