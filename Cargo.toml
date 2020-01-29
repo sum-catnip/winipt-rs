@@ -6,6 +6,7 @@ edition = "2018"
 license = "MIT"
 description = "high level rust bindings for the winipt library (https://github.com/ionescu007/winipt)"
 repository = "https://github.com/sum-catnip/winipt-rs"
+readme="README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
